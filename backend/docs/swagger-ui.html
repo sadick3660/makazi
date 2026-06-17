@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NyumbaLink API — Swagger UI</title>
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏘️</text></svg>" />
+
+  <!-- Swagger UI CDN -->
+  <link rel="stylesheet"
+    href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
+
+  <style>
+    /* ── Brand override ──────────────────────────────────────────────── */
+    :root {
+      --primary:  #1B3A6B;
+      --maroon:   #800020;
+      --surface:  #f8f9fc;
+      --border:   #e2e6ef;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", -apple-system, sans-serif;
+      background: var(--surface);
+    }
+
+    /* ── Top banner ──────────────────────────────────────────────────── */
+    .nyumba-banner {
+      background: linear-gradient(135deg, #1B3A6B 0%, #0e1e44 55%, #800020 100%);
+      color: #fff;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 2px 12px rgba(27,58,107,0.25);
+    }
+
+    .nyumba-banner .logo {
+      width: 48px;
+      height: 48px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .nyumba-banner h1 {
+      margin: 0 0 2px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .nyumba-banner p {
+      margin: 0;
+      font-size: 13px;
+      color: rgba(255,255,255,0.70);
+    }
+
+    .nyumba-banner .badge {
+      margin-left: auto;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.20);
+      border-radius: 9999px;
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── Server switcher helper ─────────────────────────────────────── */
+    .server-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: #4e5670;
+    }
+
+    .server-bar label { font-weight: 600; }
+
+    .server-bar input {
+      flex: 1;
+      max-width: 360px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    .server-bar input:focus { border-color: var(--primary); }
+
+    .server-bar button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .server-bar button:hover { background: #16316099; }
+
+    /* ── Swagger UI tweaks ───────────────────────────────────────────── */
+    #swagger-ui { background: var(--surface); }
+
+    /* Header bar — hide default Swagger branding */
+    .swagger-ui .topbar { display: none !important; }
+
+    /* Info section */
+    .swagger-ui .info {
+      margin: 24px 32px 0;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 28px;
+      box-shadow: 0 2px 10px rgba(27,58,107,0.07);
+    }
+
+    .swagger-ui .info .title {
+      color: var(--primary);
+      font-size: 26px !important;
+    }
+
+    .swagger-ui .info .version {
+      background: var(--primary);
+      color: #fff;
+      border-radius: 6px;
+      padding: 2px 10px;
+      font-size: 12px;
+    }
+
+    /* Tag section headers */
+    .swagger-ui .opblock-tag {
+      border-bottom: 2px solid var(--border);
+      color: var(--primary) !important;
+      font-size: 16px !important;
+      font-weight: 700 !important;
+    }
+
+    /* Authorise button */
+    .swagger-ui .btn.authorize {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .swagger-ui .btn.authorize:hover { background: #16316099; }
+
+    /* POST = green */
+    .swagger-ui .opblock.opblock-post .opblock-summary-method { background: #059669 !important; }
+    /* GET = blue */
+    .swagger-ui .opblock.opblock-get  .opblock-summary-method { background: var(--primary) !important; }
+    /* PATCH = amber */
+    .swagger-ui .opblock.opblock-patch .opblock-summary-method { background: #d97706 !important; }
+    /* DELETE = maroon */
+    .swagger-ui .opblock.opblock-delete .opblock-summary-method { background: var(--maroon) !important; }
+    /* WebSocket indicator */
+    .swagger-ui .opblock.opblock-get[data-tag*="Conversation"] .opblock-summary-method { background: #7c3aed !important; }
+
+    /* Expand schema models */
+    .swagger-ui .model-box { border-radius: 8px; }
+
+    /* Footer */
+    .nyumba-footer {
+      text-align: center;
+      padding: 32px;
+      font-size: 12px;
+      color: #9aa3b8;
+      border-top: 1px solid var(--border);
+      margin-top: 32px;
+    }
+
+    .nyumba-footer a { color: var(--primary); text-decoration: none; }
+    .nyumba-footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Banner ────────────────────────────────────────────────────────── -->
+  <div class="nyumba-banner">
+    <div class="logo">🏘️</div>
+    <div>
+      <h1>NyumbaLink API</h1>
+      <p>AI-Powered Accommodation Brokerage — Dar es Salaam, Tanzania</p>
+    </div>
+    <span class="badge">v2.0.0 · OpenAPI 3.1</span>
+  </div>
+
+  <!-- ── Server switcher ───────────────────────────────────────────────── -->
+  <div class="server-bar">
+    <label for="server-url">Base URL:</label>
+    <input id="server-url" type="text" value="http://localhost:8000"
+      placeholder="e.g. https://api.nyumbalink.co.tz" />
+    <button onclick="reloadWithServer()">Apply</button>
+    <span style="margin-left:8px;color:#6b7491;">
+      Live docs also at
+      <a href="http://localhost:8000/docs" target="_blank"
+        style="color:#1B3A6B;font-weight:600;">localhost:8000/docs</a>
+    </span>
+  </div>
+
+  <!-- ── Swagger UI container ──────────────────────────────────────────── -->
+  <div id="swagger-ui"></div>
+
+  <div class="nyumba-footer">
+    NyumbaLink API · © 2026 ·
+    <a href="mailto:mnemosadick@gmail.com">mnemosadick@gmail.com</a> ·
+    <a href="https://nyumbalink.co.tz" target="_blank">nyumbalink.co.tz</a>
+  </div>
+
+  <!-- ── Swagger UI JS ─────────────────────────────────────────────────── -->
+  <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js"></script>
+
+  <script>
+    // Current server base URL
+    let currentServer = localStorage.getItem("nyumbalink_api_url") || "http://localhost:8000";
+    document.getElementById("server-url").value = currentServer;
+
+    function getSpecUrl() {
+      // Try to load from live server first; fall back to local YAML
+      return currentServer + "/openapi.json";
+    }
+
+    function initSwagger(specUrl) {
+      window.ui = SwaggerUIBundle({
+        url: specUrl,
+        // Fallback: inline YAML file path (works when served via file://)
+        // spec: null,  // uncomment + set to parsed YAML object if needed
+        dom_id: "#swagger-ui",
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset,
+        ],
+        layout: "StandaloneLayout",
+        deepLinking: true,
+        displayRequestDuration: true,
+        defaultModelsExpandDepth: 2,
+        defaultModelExpandDepth: 3,
+        docExpansion: "list",
+        filter: true,
+        tryItOutEnabled: true,
+        persistAuthorization: true,
+        requestSnippetsEnabled: true,
+        requestSnippets: {
+          generators: {
+            curl_bash: { title: "cURL (bash)", syntax: "bash" },
+            node_fetch: { title: "Node.js (fetch)", syntax: "javascript" },
+            python_requests: { title: "Python (requests)", syntax: "python" },
+          },
+          defaultExpanded: true,
+        },
+        onComplete: function () {
+          console.log("NyumbaLink Swagger UI loaded ✓");
+        },
+        // OAuth2 redirect
+        oauth2RedirectUrl: currentServer + "/docs/oauth2-redirect",
+      });
+    }
+
+    function reloadWithServer() {
+      currentServer = document.getElementById("server-url").value.trim().replace(/\/$/, "");
+      localStorage.setItem("nyumbalink_api_url", currentServer);
+      initSwagger(getSpecUrl());
+    }
+
+    // Boot
+    initSwagger(getSpecUrl());
+  </script>
+</body>
+</html>

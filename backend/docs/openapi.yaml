@@ -1,0 +1,2729 @@
+openapi: "3.1.0"
+
+info:
+  title: NyumbaLink API
+  version: "2.0.0"
+  description: |
+    ## NyumbaLink — AI-Powered Accommodation Brokerage System
+    **Dar es Salaam, Tanzania**
+
+    NyumbaLink connects **Seekers** (tenants) with verified **Landlords** across
+    Dar es Salaam's five municipalities — Kinondoni, Ilala, Ubungo, Temeke, and Kigamboni.
+
+    ### Authentication
+    Protected endpoints require a **Bearer JWT** in the `Authorization` header.
+    ```
+    Authorization: Bearer <access_token>
+    ```
+    Obtain tokens via `POST /api/v1/auth/login`.
+    Access tokens expire after **24 hours**.
+    Use `POST /api/v1/auth/refresh` to renew.
+
+    ### Roles
+    | Role | Description |
+    |---|---|
+    | `SEEKER` | Tenant searching for accommodation |
+    | `LANDLORD` | Property owner managing listings |
+    | `ADMIN` | Platform administrator |
+
+    ### Base URL
+    - Development: `http://localhost:8000`
+    - Production: `https://api.nyumbalink.co.tz`
+  contact:
+    name: NyumbaLink Support
+    email: mnemosadick@gmail.com
+    url: https://nyumbalink.co.tz
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.nyumbalink.co.tz
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token. Obtain via `POST /api/v1/auth/login`.
+        Include as: `Authorization: Bearer <token>`
+
+  schemas:
+
+    # ── Auth ─────────────────────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [first_name, last_name, email, password]
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Sadick"
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Mnemonics"
+        email:
+          type: string
+          format: email
+          example: "sadick@example.co.tz"
+        phone:
+          type: string
+          nullable: true
+          example: "+255653870753"
+        password:
+          type: string
+          minLength: 8
+          example: "SecurePass123!"
+        role:
+          type: string
+          enum: [SEEKER, LANDLORD, ADMIN]
+          default: SEEKER
+          example: "SEEKER"
+        language_preference:
+          type: string
+          enum: [en, sw]
+          default: "en"
+          example: "en"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "sadick@example.co.tz"
+        password:
+          type: string
+          example: "SecurePass123!"
+        role:
+          type: string
+          enum: [SEEKER, LANDLORD, ADMIN]
+          nullable: true
+          example: "SEEKER"
+
+    TokenPair:
+      type: object
+      properties:
+        access:
+          type: string
+          description: JWT access token (expires 24h)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh:
+          type: string
+          description: JWT refresh token (expires 30 days)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    UserOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        first_name:
+          type: string
+          nullable: true
+          example: "Sadick"
+        last_name:
+          type: string
+          nullable: true
+          example: "Mnemonics"
+        email:
+          type: string
+          example: "sadick@example.co.tz"
+        phone:
+          type: string
+          nullable: true
+          example: "+255653870753"
+        role:
+          type: string
+          enum: [SEEKER, LANDLORD, ADMIN]
+          example: "SEEKER"
+        profile_image:
+          type: string
+          nullable: true
+          example: "https://cdn.nyumbalink.co.tz/avatars/user.jpg"
+        language_preference:
+          type: string
+          example: "en"
+        email_verified:
+          type: boolean
+          example: false
+        phone_verified:
+          type: boolean
+          example: false
+        two_factor_enabled:
+          type: boolean
+          example: false
+        account_status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, BANNED]
+          example: "ACTIVE"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-01-15T10:30:00Z"
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserOut"
+        tokens:
+          $ref: "#/components/schemas/TokenPair"
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        language_preference:
+          type: string
+          enum: [en, sw]
+          nullable: true
+        profile_image:
+          type: string
+          nullable: true
+
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+          example: "OldPass123!"
+        new_password:
+          type: string
+          minLength: 8
+          example: "NewPass456!"
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "sadick@example.co.tz"
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+          description: Signed JWT token from the reset email
+        password:
+          type: string
+          minLength: 8
+          example: "NewSecurePass789!"
+
+    # ── Properties ────────────────────────────────────────────────────────────
+
+    AmenityOut:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        amenity_name:
+          type: string
+          nullable: true
+          example: "Swimming Pool"
+
+    AmenityCreate:
+      type: object
+      required: [amenity_name]
+      properties:
+        amenity_name:
+          type: string
+          example: "Gym"
+
+    PropertyImageOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        image_url:
+          type: string
+          example: "https://res.cloudinary.com/nyumbalink/image/upload/v1234/prop.jpg"
+        is_primary:
+          type: boolean
+          example: true
+
+    PropertyVideoOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        video_url:
+          type: string
+          nullable: true
+          example: "https://res.cloudinary.com/nyumbalink/video/upload/v1234/tour.mp4"
+
+    LandlordBrief:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+
+    PropertyOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        landlord_id:
+          type: string
+          format: uuid
+        landlord:
+          $ref: "#/components/schemas/LandlordBrief"
+        property_type:
+          type: string
+          enum: [HOSTEL, ROOM, APARTMENT, HOUSE]
+          example: "HOSTEL"
+        title:
+          type: string
+          nullable: true
+          example: "Kiota Hostel (Girls Only)"
+        description:
+          type: string
+          nullable: true
+          example: "Premium girls-only hostel in Mikocheni with 175 beds."
+        location:
+          type: string
+          nullable: true
+          example: "Mikocheni, Kinondoni"
+        ward:
+          type: string
+          nullable: true
+          example: "Mikocheni"
+        district:
+          type: string
+          nullable: true
+          example: "Kinondoni"
+        city:
+          type: string
+          example: "Dar es Salaam"
+        latitude:
+          type: number
+          format: float
+          nullable: true
+          example: -6.7658
+        longitude:
+          type: number
+          format: float
+          nullable: true
+          example: 39.2795
+        monthly_rent:
+          type: number
+          format: float
+          nullable: true
+          example: 640000
+        bedrooms:
+          type: integer
+          nullable: true
+          example: 1
+        bathrooms:
+          type: integer
+          nullable: true
+          example: 24
+        size_sqm:
+          type: number
+          format: float
+          nullable: true
+          example: 18.0
+        gender_restriction:
+          type: string
+          enum: [MALE, FEMALE, MIXED]
+          nullable: true
+          example: "FEMALE"
+        capacity:
+          type: integer
+          nullable: true
+          example: 175
+        availability_status:
+          type: string
+          enum: [AVAILABLE, RENTED, SUSPENDED, MAINTENANCE]
+          example: "AVAILABLE"
+        is_verified:
+          type: boolean
+          example: true
+        view_count:
+          type: integer
+          example: 142
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/PropertyImageOut"
+        videos:
+          type: array
+          items:
+            $ref: "#/components/schemas/PropertyVideoOut"
+        amenities:
+          type: array
+          items:
+            $ref: "#/components/schemas/AmenityOut"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PropertyCreate:
+      type: object
+      required: [property_type, title, monthly_rent]
+      properties:
+        property_type:
+          type: string
+          enum: [HOSTEL, ROOM, APARTMENT, HOUSE]
+          example: "ROOM"
+        title:
+          type: string
+          minLength: 3
+          maxLength: 255
+          example: "Spacious Room in Mikocheni B"
+        description:
+          type: string
+          nullable: true
+          example: "Clean, quiet room with 24/7 water and LUKU electricity."
+        location:
+          type: string
+          nullable: true
+          example: "Mikocheni B, Off New Bagamoyo Road"
+        ward:
+          type: string
+          nullable: true
+          example: "Mikocheni"
+        district:
+          type: string
+          nullable: true
+          example: "Kinondoni"
+        city:
+          type: string
+          default: "Dar es Salaam"
+        latitude:
+          type: number
+          format: float
+          nullable: true
+          example: -6.764
+        longitude:
+          type: number
+          format: float
+          nullable: true
+          example: 39.279
+        monthly_rent:
+          type: number
+          format: float
+          minimum: 1
+          example: 180000
+        bedrooms:
+          type: integer
+          nullable: true
+          minimum: 0
+          example: 1
+        bathrooms:
+          type: integer
+          nullable: true
+          minimum: 0
+          example: 1
+        size_sqm:
+          type: number
+          format: float
+          nullable: true
+          example: 18.0
+        gender_restriction:
+          type: string
+          enum: [MALE, FEMALE, MIXED]
+          nullable: true
+        capacity:
+          type: integer
+          nullable: true
+          example: 1
+        amenity_ids:
+          type: array
+          items:
+            type: integer
+          default: []
+          example: [1, 3, 5]
+
+    PropertyUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        ward:
+          type: string
+          nullable: true
+        monthly_rent:
+          type: number
+          format: float
+          nullable: true
+          minimum: 1
+        bedrooms:
+          type: integer
+          nullable: true
+        bathrooms:
+          type: integer
+          nullable: true
+        size_sqm:
+          type: number
+          nullable: true
+        gender_restriction:
+          type: string
+          nullable: true
+        capacity:
+          type: integer
+          nullable: true
+        availability_status:
+          type: string
+          enum: [AVAILABLE, RENTED, SUSPENDED, MAINTENANCE]
+          nullable: true
+        amenity_ids:
+          type: array
+          items:
+            type: integer
+          nullable: true
+
+    PaginatedProperties:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/PropertyOut"
+        total:
+          type: integer
+          example: 42
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+        total_pages:
+          type: integer
+          example: 3
+
+    # ── Rentals ───────────────────────────────────────────────────────────────
+
+    FavoriteOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
+    ApplicationCreate:
+      type: object
+      required: [property_id]
+      properties:
+        property_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        move_in_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-08-01"
+        message:
+          type: string
+          nullable: true
+          example: "I am a UDSM student looking for a quiet room."
+
+    ApplicationOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        seeker_id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        application_status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+          example: "PENDING"
+        move_in_date:
+          type: string
+          format: date
+          nullable: true
+        message:
+          type: string
+          nullable: true
+        applied_at:
+          type: string
+          format: date-time
+
+    ApplicationStatusUpdate:
+      type: object
+      required: [application_status]
+      properties:
+        application_status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, CANCELLED]
+          example: "APPROVED"
+
+    AppointmentCreate:
+      type: object
+      required: [property_id, appointment_date]
+      properties:
+        property_id:
+          type: string
+          format: uuid
+        appointment_date:
+          type: string
+          format: date-time
+          example: "2025-07-20T10:00:00Z"
+        notes:
+          type: string
+          nullable: true
+          example: "Please confirm 24 hours before the visit."
+
+    AppointmentOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        seeker_id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        appointment_date:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED]
+          example: "PENDING"
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    AppointmentStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, CANCELLED, COMPLETED]
+          example: "CONFIRMED"
+
+    # ── Payments ──────────────────────────────────────────────────────────────
+
+    PaymentInitiate:
+      type: object
+      required: [property_id, amount, payment_method]
+      properties:
+        property_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        amount:
+          type: number
+          format: float
+          minimum: 1
+          example: 640000
+        payment_method:
+          type: string
+          enum: [MPESA, AIRTEL, TIGO, HALOPESA, CARD]
+          example: "MPESA"
+        phone_number:
+          type: string
+          nullable: true
+          example: "+255653870753"
+          description: "Required for mobile money payments"
+        description:
+          type: string
+          nullable: true
+          example: "Rent payment — Kiota Hostel July 2025"
+
+    PaymentOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: number
+          format: float
+          nullable: true
+          example: 640000
+        payment_method:
+          type: string
+          nullable: true
+          example: "MPESA"
+        transaction_reference:
+          type: string
+          nullable: true
+          example: "TXNABC123456789"
+        payment_status:
+          type: string
+          nullable: true
+          enum: [PENDING, COMPLETED, FAILED, REFUNDED]
+          example: "COMPLETED"
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    ReceiptOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        payment_id:
+          type: string
+          format: uuid
+        receipt_number:
+          type: string
+          nullable: true
+          example: "RCT87654321"
+        receipt_url:
+          type: string
+          nullable: true
+          example: "https://receipts.nyumbalink.co.tz/550e8400-e29b-41d4-a716-446655440002"
+        generated_at:
+          type: string
+          format: date-time
+
+    # ── Reviews ───────────────────────────────────────────────────────────────
+
+    ReviewCreate:
+      type: object
+      required: [property_id, rating]
+      properties:
+        property_id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 4
+        review_text:
+          type: string
+          nullable: true
+          example: "Very clean hostel, good security. Water supply is excellent."
+
+    ReviewOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reviewer_id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+        landlord_id:
+          type: string
+          format: uuid
+          nullable: true
+        rating:
+          type: integer
+          nullable: true
+          example: 4
+        review_text:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          enum: [POSITIVE, NEUTRAL, NEGATIVE]
+          nullable: true
+          example: "POSITIVE"
+        moderation_status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+          example: "PENDING"
+        created_at:
+          type: string
+          format: date-time
+
+    ReviewModerationUpdate:
+      type: object
+      required: [moderation_status]
+      properties:
+        moderation_status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+          example: "APPROVED"
+
+    # ── Messaging ─────────────────────────────────────────────────────────────
+
+    ConversationCreate:
+      type: object
+      required: [landlord_id]
+      properties:
+        landlord_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440003"
+
+    MessageOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversation_id:
+          type: string
+          format: uuid
+        sender_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+          nullable: true
+          example: "Is the room still available?"
+        message_type:
+          type: string
+          enum: [TEXT, IMAGE, FILE]
+          example: "TEXT"
+        is_read:
+          type: boolean
+          example: false
+        sent_at:
+          type: string
+          format: date-time
+
+    ConversationOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        seeker_id:
+          type: string
+          format: uuid
+        landlord_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageOut"
+
+    MessageCreate:
+      type: object
+      required: [conversation_id, message]
+      properties:
+        conversation_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+          minLength: 1
+          example: "What is the deposit amount?"
+        message_type:
+          type: string
+          enum: [TEXT, IMAGE, FILE]
+          default: "TEXT"
+
+    # ── Notifications ─────────────────────────────────────────────────────────
+
+    NotificationOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          nullable: true
+          example: "Application Approved"
+        message:
+          type: string
+          nullable: true
+          example: "Your application for Kiota Hostel has been approved!"
+        notification_type:
+          type: string
+          nullable: true
+          enum: [APPLICATION, PAYMENT, MESSAGE, SYSTEM, APPOINTMENT]
+          example: "APPLICATION"
+        is_read:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+
+    # ── Admin ─────────────────────────────────────────────────────────────────
+
+    AdminStats:
+      type: object
+      properties:
+        total_users:
+          type: integer
+          example: 1248
+        total_properties:
+          type: integer
+          example: 342
+        active_listings:
+          type: integer
+          example: 287
+        total_revenue:
+          type: number
+          format: float
+          example: 12450000
+        pending_approvals:
+          type: integer
+          example: 14
+        fraud_reports:
+          type: integer
+          example: 3
+        open_complaints:
+          type: integer
+          example: 7
+        pending_reviews:
+          type: integer
+          example: 22
+        users_by_role:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            SEEKER: 980
+            LANDLORD: 245
+            ADMIN: 23
+        properties_by_type:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+            HOSTEL: 9
+            ROOM: 180
+            APARTMENT: 95
+            HOUSE: 58
+
+    ComplaintCreate:
+      type: object
+      required: [complaint_text]
+      properties:
+        property_id:
+          type: string
+          format: uuid
+          nullable: true
+        complaint_text:
+          type: string
+          minLength: 10
+          example: "Landlord is demanding money above listed price."
+
+    ComplaintOut:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        complainant_id:
+          type: string
+          format: uuid
+        property_id:
+          type: string
+          format: uuid
+          nullable: true
+        complaint_text:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [OPEN, IN_REVIEW, RESOLVED, CLOSED]
+          example: "OPEN"
+        resolved_by:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    SystemSettingOut:
+      type: object
+      properties:
+        id:
+          type: integer
+        setting_key:
+          type: string
+          nullable: true
+          example: "max_listing_images"
+        setting_value:
+          type: string
+          nullable: true
+          example: "10"
+        updated_at:
+          type: string
+          format: date-time
+
+    SystemSettingUpdate:
+      type: object
+      required: [setting_value]
+      properties:
+        setting_value:
+          type: string
+          example: "15"
+
+    # ── AI / Price Prediction ─────────────────────────────────────────────────
+
+    PricePredictionRequest:
+      type: object
+      required: [ward, water_reliability, electricity_config, is_furnished, has_wifi, distance_to_transit_m]
+      properties:
+        ward:
+          type: string
+          enum: [Mikocheni, Mwananyamala, Kijitonyama, Mwenge, Mabatini, Makumbusho, Sinza]
+          example: "Mikocheni"
+        structural_rooms:
+          type: integer
+          minimum: 1
+          default: 1
+          example: 1
+        water_reliability:
+          type: string
+          enum: [none, intermittent, daily, continuous]
+          example: "daily"
+        electricity_config:
+          type: string
+          enum: [none, luku, fixed, solar]
+          example: "luku"
+        distance_to_transit_m:
+          type: number
+          format: float
+          minimum: 0
+          example: 400
+        floor_area_sqm:
+          type: number
+          format: float
+          minimum: 5
+          default: 25
+          example: 18
+        is_furnished:
+          type: boolean
+          default: false
+        has_wifi:
+          type: boolean
+          default: false
+
+    PricePredictionResponse:
+      type: object
+      properties:
+        estimated_fair_market_value:
+          type: number
+          format: float
+          example: 165000
+        calculated_variance_range:
+          type: object
+          properties:
+            minimum_fair_boundary:
+              type: number
+              format: float
+              example: 145200
+            maximum_fair_boundary:
+              type: number
+              format: float
+              example: 184800
+        confidence_score_metric:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          example: 0.91
+        ward:
+          type: string
+          example: "Mikocheni"
+        is_overpriced:
+          type: boolean
+          example: false
+        overpriced_by_percent:
+          type: number
+          format: float
+          example: 0.0
+
+    # ── NLP Chatbot ───────────────────────────────────────────────────────────
+
+    ConversationRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: "Natafuta chumba Mikocheni chini ya 200,000"
+        session_id:
+          type: string
+          nullable: true
+          example: "sess_abc123"
+
+    ConversationResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+          example: "sess_abc123"
+        reply:
+          type: string
+          example: "Nimepata vyumba vinavyolingana Mikocheni. Hivi ndivyo chaguo bora…"
+        parsed_intent:
+          type: object
+          nullable: true
+          properties:
+            parsed_intent:
+              type: string
+              enum: [search_accommodation, predict_fair_price, view_amenities, unknown]
+            geographical_bounds:
+              type: object
+              properties:
+                target_municipality:
+                  type: string
+                  example: "Kinondoni"
+                target_ward:
+                  type: string
+                  nullable: true
+                  example: "Mikocheni"
+            financial_constraints:
+              type: object
+              properties:
+                max_budget_limit:
+                  type: number
+                  nullable: true
+                  example: 200000
+                currency_code:
+                  type: string
+                  example: "TZS"
+            confidence:
+              type: number
+              format: float
+              example: 0.87
+        action_triggered:
+          type: string
+          nullable: true
+          example: "TRIGGER_SEARCH"
+
+    # ── Errors ────────────────────────────────────────────────────────────────
+
+    HTTPError:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: "Resource not found."
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string
+
+# ── Tags ──────────────────────────────────────────────────────────────────────
+
+tags:
+  - name: Auth
+    description: "Registration, login, JWT tokens, profile, password management"
+  - name: Properties
+    description: "CRUD for hostel/room/apartment/house listings with image/video support"
+  - name: Rentals
+    description: "Favorites, rental applications, viewing appointments"
+  - name: Payments
+    description: "M-Pesa, Airtel, Tigo, HaloPesa payment initiation and receipts"
+  - name: Reviews
+    description: "Property reviews with sentiment analysis and moderation"
+  - name: Messaging
+    description: "Seeker ↔ landlord direct messaging and chatbot logging"
+  - name: Notifications
+    description: "In-app notifications"
+  - name: Admin
+    description: "Platform analytics, user/property management, complaints, settings"
+  - name: Price Intelligence
+    description: "XGBoost fair-price prediction and dalali fraud detection"
+  - name: Conversation
+    description: "Bilingual AI chatbot (Swahili + English) — REST and WebSocket"
+  - name: Amenities
+    description: "Nearby POIs — hospitals, transit stops, cafeterias"
+  - name: System
+    description: "Health check"
+
+# ── Paths ─────────────────────────────────────────────────────────────────────
+
+paths:
+
+  # ────────────────────────────────── SYSTEM ─────────────────────────────────
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      description: Returns service status, version, and environment. No authentication required.
+      security: []
+      operationId: health_check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  service:
+                    type: string
+                    example: "NyumbaLink API"
+                  version:
+                    type: string
+                    example: "2.0.0"
+                  environment:
+                    type: string
+                    example: "development"
+
+  # ────────────────────────────────── AUTH ───────────────────────────────────
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: |
+        Create a new account. Supported roles: `SEEKER`, `LANDLORD`, `ADMIN`.
+        Landlord accounts automatically receive a landlord profile record.
+        Returns JWT access and refresh tokens immediately.
+      security: []
+      operationId: auth_register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            examples:
+              seeker:
+                summary: Register as Seeker
+                value:
+                  first_name: "Amina"
+                  last_name: "Hassan"
+                  email: "amina@example.co.tz"
+                  phone: "+255712345678"
+                  password: "SecurePass123!"
+                  role: "SEEKER"
+              landlord:
+                summary: Register as Landlord
+                value:
+                  first_name: "John"
+                  last_name: "Massawe"
+                  email: "john@example.co.tz"
+                  phone: "+255754001001"
+                  password: "LandlordPass456!"
+                  role: "LANDLORD"
+      responses:
+        "201":
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive JWT tokens
+      description: |
+        Authenticate with email and password.
+        Optionally specify `role` to enforce role matching.
+        Returns access token (24h) and refresh token (30 days).
+      security: []
+      operationId: auth_login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              seeker_login:
+                summary: Seeker login
+                value:
+                  email: "amina@example.co.tz"
+                  password: "SecurePass123!"
+                  role: "SEEKER"
+              admin_login:
+                summary: Admin login
+                value:
+                  email: "admin@nyumbalink.co.tz"
+                  password: "AdminPass789!"
+                  role: "ADMIN"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+        "403":
+          description: Account suspended or role mismatch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPError"
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      description: Returns the authenticated user's full profile.
+      operationId: auth_get_me
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOut"
+        "401":
+          description: Not authenticated
+    patch:
+      tags: [Auth]
+      summary: Update current user profile
+      description: Update first name, last name, phone, language, or profile image.
+      operationId: auth_update_me
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOut"
+
+  /api/v1/auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password
+      description: Change password for the currently authenticated user.
+      operationId: auth_change_password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "204":
+          description: Password changed
+        "400":
+          description: Current password incorrect
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset email
+      description: |
+        Sends a signed password-reset JWT to the registered email address.
+        Always returns 204 (even if email not found) to prevent enumeration.
+        **Note:** Email sending must be wired in production.
+      security: []
+      operationId: auth_forgot_password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "204":
+          description: Reset email sent (or silently ignored if email not found)
+
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using signed token
+      description: Validates the JWT from the reset email and updates the password.
+      security: []
+      operationId: auth_reset_password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "204":
+          description: Password reset successfully
+        "400":
+          description: Invalid or expired token
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      description: Exchange a valid refresh token for a new access + refresh token pair.
+      security: []
+      operationId: auth_refresh
+      parameters:
+        - name: refresh
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The refresh token
+      responses:
+        "200":
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+        "401":
+          description: Invalid or expired refresh token
+
+  # ────────────────────────────── PROPERTIES ─────────────────────────────────
+
+  /api/v1/properties:
+    get:
+      tags: [Properties]
+      summary: Search / list properties
+      description: |
+        Full-text and filtered property search.
+        All query parameters are optional — omitting them returns all available properties.
+      security: []
+      operationId: properties_list
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: Free-text search (title, description, location)
+          example: "mikocheni hostel"
+        - name: ward
+          in: query
+          schema:
+            type: string
+          example: "Mikocheni"
+        - name: district
+          in: query
+          schema:
+            type: string
+          example: "Kinondoni"
+        - name: property_type
+          in: query
+          schema:
+            type: string
+            enum: [HOSTEL, ROOM, APARTMENT, HOUSE]
+          example: "HOSTEL"
+        - name: min_rent
+          in: query
+          schema:
+            type: number
+            minimum: 0
+          example: 100000
+        - name: max_rent
+          in: query
+          schema:
+            type: number
+            minimum: 0
+          example: 800000
+        - name: min_bedrooms
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+          example: 1
+        - name: gender_restriction
+          in: query
+          schema:
+            type: string
+            enum: [MALE, FEMALE, MIXED]
+          description: Filter hostels by gender policy
+          example: "FEMALE"
+        - name: availability
+          in: query
+          schema:
+            type: string
+            enum: [AVAILABLE, RENTED, SUSPENDED, MAINTENANCE]
+            default: AVAILABLE
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Paginated property list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedProperties"
+    post:
+      tags: [Properties]
+      summary: Create a new property listing
+      description: |
+        Create a new listing. Requires **LANDLORD** or **ADMIN** role.
+        `amenity_ids` links the property to existing amenities.
+      operationId: properties_create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PropertyCreate"
+            examples:
+              hostel:
+                summary: Create a hostel listing
+                value:
+                  property_type: "HOSTEL"
+                  title: "Dage Hostel (Girls Only)"
+                  description: "Girls-only hostel in Africa Sana with 56-bed capacity."
+                  location: "Africa Sana, Kinondoni"
+                  ward: "Sinza"
+                  district: "Kinondoni"
+                  latitude: -6.7955
+                  longitude: 39.2468
+                  monthly_rent: 640000
+                  bedrooms: 1
+                  bathrooms: 8
+                  gender_restriction: "FEMALE"
+                  capacity: 56
+                  amenity_ids: [1, 2]
+      responses:
+        "201":
+          description: Property created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyOut"
+        "403":
+          description: Not a landlord or admin
+
+  /api/v1/properties/my/listings:
+    get:
+      tags: [Properties]
+      summary: Get my listings (Landlord)
+      description: Returns all properties owned by the authenticated landlord.
+      operationId: properties_my_listings
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated list of landlord's properties
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedProperties"
+
+  /api/v1/properties/amenities/list:
+    get:
+      tags: [Properties]
+      summary: List all available amenities
+      security: []
+      operationId: amenities_list
+      responses:
+        "200":
+          description: List of amenities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AmenityOut"
+
+  /api/v1/properties/amenities:
+    post:
+      tags: [Properties]
+      summary: Create a new amenity (Admin only)
+      operationId: amenities_create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AmenityCreate"
+      responses:
+        "201":
+          description: Amenity created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmenityOut"
+
+  /api/v1/properties/{property_id}:
+    get:
+      tags: [Properties]
+      summary: Get a single property
+      description: Returns full property detail including images, videos, and amenities. Also increments the view counter.
+      security: []
+      operationId: properties_get_one
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      responses:
+        "200":
+          description: Property detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyOut"
+        "404":
+          description: Property not found
+    patch:
+      tags: [Properties]
+      summary: Update a property
+      description: Partial update. Landlord can only update own properties; Admin can update any.
+      operationId: properties_update
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PropertyUpdate"
+      responses:
+        "200":
+          description: Updated property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PropertyOut"
+    delete:
+      tags: [Properties]
+      summary: Suspend (soft-delete) a property
+      description: Sets `availability_status` to `SUSPENDED`. Does not physically delete the record.
+      operationId: properties_delete
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      responses:
+        "204":
+          description: Property suspended
+
+  /api/v1/properties/{property_id}/images:
+    post:
+      tags: [Properties]
+      summary: Add an image URL to a property
+      operationId: properties_add_image
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+        - name: image_url
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "https://res.cloudinary.com/nyumbalink/image/upload/v1234/room.jpg"
+        - name: is_primary
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "201":
+          description: Image added
+
+  /api/v1/properties/{property_id}/images/{image_id}:
+    delete:
+      tags: [Properties]
+      summary: Delete a property image
+      operationId: properties_delete_image
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+        - name: image_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Image deleted
+
+  /api/v1/properties/{property_id}/videos:
+    post:
+      tags: [Properties]
+      summary: Add a video URL to a property
+      operationId: properties_add_video
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+        - name: video_url
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "https://res.cloudinary.com/nyumbalink/video/upload/v1234/tour.mp4"
+      responses:
+        "201":
+          description: Video added
+
+  # ────────────────────────────────── RENTALS ────────────────────────────────
+
+  /api/v1/rentals/favorites:
+    get:
+      tags: [Rentals]
+      summary: List my saved favorite properties
+      operationId: rentals_list_favorites
+      responses:
+        "200":
+          description: List of favorites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FavoriteOut"
+
+  /api/v1/rentals/favorites/{property_id}:
+    post:
+      tags: [Rentals]
+      summary: Save a property to favorites
+      operationId: rentals_add_favorite
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      responses:
+        "201":
+          description: Added to favorites
+        "409":
+          description: Already in favorites
+    delete:
+      tags: [Rentals]
+      summary: Remove a property from favorites
+      operationId: rentals_remove_favorite
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      responses:
+        "204":
+          description: Removed from favorites
+
+  /api/v1/rentals/applications:
+    post:
+      tags: [Rentals]
+      summary: Submit a rental application
+      description: Seeker applies for a property. Landlord must approve/reject.
+      operationId: rentals_apply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationCreate"
+      responses:
+        "201":
+          description: Application submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationOut"
+
+  /api/v1/rentals/applications/mine:
+    get:
+      tags: [Rentals]
+      summary: List my rental applications
+      operationId: rentals_my_applications
+      responses:
+        "200":
+          description: List of my applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApplicationOut"
+
+  /api/v1/rentals/applications/property/{property_id}:
+    get:
+      tags: [Rentals]
+      summary: List applications for a property (Landlord / Admin)
+      operationId: rentals_property_applications
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      responses:
+        "200":
+          description: Applications for the property
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApplicationOut"
+
+  /api/v1/rentals/applications/{application_id}:
+    patch:
+      tags: [Rentals]
+      summary: Update application status (Landlord / Admin)
+      operationId: rentals_update_application
+      parameters:
+        - name: application_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationStatusUpdate"
+      responses:
+        "200":
+          description: Updated application
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplicationOut"
+
+  /api/v1/rentals/appointments:
+    post:
+      tags: [Rentals]
+      summary: Book a property viewing appointment
+      operationId: rentals_book_appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentCreate"
+      responses:
+        "201":
+          description: Appointment booked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentOut"
+
+  /api/v1/rentals/appointments/mine:
+    get:
+      tags: [Rentals]
+      summary: List my viewing appointments
+      operationId: rentals_my_appointments
+      responses:
+        "200":
+          description: My appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppointmentOut"
+
+  /api/v1/rentals/appointments/{appointment_id}:
+    patch:
+      tags: [Rentals]
+      summary: Update appointment status
+      operationId: rentals_update_appointment
+      parameters:
+        - name: appointment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentStatusUpdate"
+      responses:
+        "200":
+          description: Updated appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentOut"
+
+  # ────────────────────────────────── PAYMENTS ───────────────────────────────
+
+  /api/v1/payments:
+    post:
+      tags: [Payments]
+      summary: Initiate a payment
+      description: |
+        Initiate payment via mobile money or card.
+        Supported methods: **MPESA**, **AIRTEL**, **TIGO**, **HALOPESA**, **CARD**.
+        Auto-generates a receipt on completion.
+        In production, wire to Vodacom / Airtel push-pay APIs.
+      operationId: payments_initiate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInitiate"
+            examples:
+              mpesa:
+                summary: M-Pesa payment
+                value:
+                  property_id: "550e8400-e29b-41d4-a716-446655440001"
+                  amount: 640000
+                  payment_method: "MPESA"
+                  phone_number: "+255653870753"
+                  description: "July 2025 rent — Kiota Hostel"
+      responses:
+        "201":
+          description: Payment initiated and completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentOut"
+
+  /api/v1/payments/history:
+    get:
+      tags: [Payments]
+      summary: My payment history
+      operationId: payments_history
+      responses:
+        "200":
+          description: List of past payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaymentOut"
+
+  /api/v1/payments/{payment_id}/receipt:
+    get:
+      tags: [Payments]
+      summary: Get payment receipt
+      operationId: payments_get_receipt
+      parameters:
+        - name: payment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptOut"
+        "404":
+          description: Receipt not found
+
+  # ────────────────────────────────── REVIEWS ────────────────────────────────
+
+  /api/v1/reviews:
+    post:
+      tags: [Reviews]
+      summary: Submit a property review
+      description: |
+        Authenticated users can review properties they have visited or rented.
+        Sentiment is auto-detected (rule-based; upgrade to OpenAI in production).
+        All reviews start in `PENDING` moderation status.
+      operationId: reviews_create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewCreate"
+      responses:
+        "201":
+          description: Review submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewOut"
+
+  /api/v1/reviews/property/{property_id}:
+    get:
+      tags: [Reviews]
+      summary: Get approved reviews for a property
+      security: []
+      operationId: reviews_get_property
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      responses:
+        "200":
+          description: Approved reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewOut"
+
+  /api/v1/reviews/pending:
+    get:
+      tags: [Reviews]
+      summary: List pending reviews (Admin only)
+      operationId: reviews_pending
+      responses:
+        "200":
+          description: Pending reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewOut"
+
+  /api/v1/reviews/{review_id}/moderate:
+    patch:
+      tags: [Reviews]
+      summary: Approve or reject a review (Admin only)
+      operationId: reviews_moderate
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewModerationUpdate"
+      responses:
+        "200":
+          description: Moderated review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewOut"
+
+  # ────────────────────────────────── MESSAGING ──────────────────────────────
+
+  /api/v1/messaging/conversations:
+    post:
+      tags: [Messaging]
+      summary: Start or retrieve a conversation with a landlord
+      description: |
+        Creates a new conversation between the authenticated seeker and the specified landlord.
+        If a conversation already exists, returns the existing one (idempotent).
+      operationId: messaging_start_conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationCreate"
+      responses:
+        "201":
+          description: Conversation created or retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationOut"
+    get:
+      tags: [Messaging]
+      summary: List all my conversations
+      operationId: messaging_list_conversations
+      responses:
+        "200":
+          description: Conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConversationOut"
+
+  /api/v1/messaging/conversations/{conversation_id}:
+    get:
+      tags: [Messaging]
+      summary: Get a conversation with all its messages
+      operationId: messaging_get_conversation
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationOut"
+        "403":
+          description: Not your conversation
+        "404":
+          description: Not found
+
+  /api/v1/messaging/messages:
+    post:
+      tags: [Messaging]
+      summary: Send a message in a conversation
+      operationId: messaging_send_message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageCreate"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageOut"
+
+  /api/v1/messaging/messages/{message_id}/read:
+    patch:
+      tags: [Messaging]
+      summary: Mark a message as read
+      operationId: messaging_mark_read
+      parameters:
+        - name: message_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Marked as read
+
+  # ──────────────────────────── NOTIFICATIONS ────────────────────────────────
+
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: Get my notifications (latest 50)
+      operationId: notifications_list
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotificationOut"
+
+  /api/v1/notifications/{notification_id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark a notification as read
+      operationId: notifications_mark_read
+      parameters:
+        - name: notification_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Marked as read
+
+  /api/v1/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      operationId: notifications_mark_all_read
+      responses:
+        "204":
+          description: All notifications marked as read
+
+  # ────────────────────────────────── ADMIN ──────────────────────────────────
+
+  /api/v1/admin/stats:
+    get:
+      tags: [Admin]
+      summary: Platform analytics dashboard
+      description: Returns real-time platform statistics. Requires ADMIN role.
+      operationId: admin_stats
+      responses:
+        "200":
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+        "403":
+          description: Admin access required
+
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users
+      operationId: admin_list_users
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [SEEKER, LANDLORD, ADMIN]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, SUSPENDED, BANNED]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserOut"
+
+  /api/v1/admin/users/{user_id}/suspend:
+    patch:
+      tags: [Admin]
+      summary: Suspend a user account
+      operationId: admin_suspend_user
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: User suspended
+        "404":
+          description: User not found
+
+  /api/v1/admin/users/{user_id}/activate:
+    patch:
+      tags: [Admin]
+      summary: Activate a suspended user
+      operationId: admin_activate_user
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "204":
+          description: User activated
+
+  /api/v1/admin/properties/{property_id}/verify:
+    patch:
+      tags: [Admin]
+      summary: Verify a property listing
+      operationId: admin_verify_property
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      responses:
+        "204":
+          description: Property verified
+
+  /api/v1/admin/properties/{property_id}/suspend:
+    patch:
+      tags: [Admin]
+      summary: Suspend a property listing
+      operationId: admin_suspend_property
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      responses:
+        "204":
+          description: Property suspended
+
+  /api/v1/admin/complaints:
+    get:
+      tags: [Admin]
+      summary: List all complaints
+      operationId: admin_list_complaints
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [OPEN, IN_REVIEW, RESOLVED, CLOSED]
+      responses:
+        "200":
+          description: Complaints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ComplaintOut"
+
+  /api/v1/admin/complaints/{complaint_id}/resolve:
+    patch:
+      tags: [Admin]
+      summary: Mark complaint as resolved
+      operationId: admin_resolve_complaint
+      parameters:
+        - name: complaint_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Resolved complaint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplaintOut"
+
+  /api/v1/admin/settings:
+    get:
+      tags: [Admin]
+      summary: Get all system settings
+      operationId: admin_get_settings
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SystemSettingOut"
+
+  /api/v1/admin/settings/{key}:
+    patch:
+      tags: [Admin]
+      summary: Update a system setting
+      operationId: admin_update_setting
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "max_listing_images"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SystemSettingUpdate"
+      responses:
+        "200":
+          description: Updated setting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettingOut"
+
+  /api/v1/admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: View audit logs
+      operationId: admin_audit_logs
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        "200":
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        user_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        action:
+                          type: string
+                          example: "LOGIN"
+                        entity_name:
+                          type: string
+                          example: "User"
+                        entity_id:
+                          type: string
+                          format: uuid
+                          nullable: true
+                        ip_address:
+                          type: string
+                          nullable: true
+                        created_at:
+                          type: string
+                          format: date-time
+
+  # ────────────────────────── PRICE INTELLIGENCE ─────────────────────────────
+
+  /api/v1/predict-price/:
+    post:
+      tags: [Price Intelligence]
+      summary: Predict fair market rental value
+      description: |
+        XGBoost hedonic pricing model. Predicts fair market rent based on:
+        ward, rooms, utilities, distance to transit, and furnishing.
+        If the listed price is higher than predicted by >10%, `is_overpriced` is set.
+      security: []
+      operationId: price_predict
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PricePredictionRequest"
+            example:
+              ward: "Mikocheni"
+              structural_rooms: 1
+              water_reliability: "daily"
+              electricity_config: "luku"
+              distance_to_transit_m: 300
+              floor_area_sqm: 18
+              is_furnished: false
+              has_wifi: false
+      responses:
+        "200":
+          description: Price prediction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricePredictionResponse"
+
+  /api/v1/predict-price/flag-listing:
+    post:
+      tags: [Price Intelligence]
+      summary: Compare listed price against ML estimate
+      description: Returns `is_overpriced=true` if listed price exceeds prediction by >10%.
+      security: []
+      operationId: price_flag_listing
+      parameters:
+        - name: listed_price
+          in: query
+          required: true
+          schema:
+            type: number
+            format: float
+          example: 300000
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PricePredictionRequest"
+      responses:
+        "200":
+          description: Price flag result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PricePredictionResponse"
+
+  # ────────────────────────────── CONVERSATION ───────────────────────────────
+
+  /api/v1/conversation/message:
+    post:
+      tags: [Conversation]
+      summary: Send a chat message to the AI assistant (REST)
+      description: |
+        Bilingual NLP chatbot. Understands Swahili and English.
+        Classifies intent: `search_accommodation`, `predict_fair_price`, `view_amenities`.
+        Triggers property search automatically when intent is `search_accommodation`.
+      security: []
+      operationId: conversation_message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationRequest"
+            examples:
+              swahili:
+                summary: Swahili search
+                value:
+                  message: "Natafuta chumba Mikocheni chini ya 200,000"
+                  session_id: "sess_abc123"
+              english:
+                summary: English price query
+                value:
+                  message: "What is the fair price for a room in Sinza?"
+      responses:
+        "200":
+          description: AI response with parsed intent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationResponse"
+
+  /api/v1/conversation/history/{session_id}:
+    get:
+      tags: [Conversation]
+      summary: Get conversation history for a session
+      security: []
+      operationId: conversation_history
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "sess_abc123"
+      responses:
+        "200":
+          description: Session conversation history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                  history:
+                    type: array
+                    items:
+                      type: object
+
+  /api/v1/conversation/ws/{session_id}:
+    get:
+      tags: [Conversation]
+      summary: Real-time WebSocket chat
+      description: |
+        Connect via WebSocket for real-time bilingual chat.
+        
+        **Client frame format (JSON string):**
+        ```json
+        { "message": "Natafuta hostel karibu na IAA" }
+        ```
+        
+        **Server frame format (JSON string):**
+        ```json
+        {
+          "session_id": "sess_abc123",
+          "reply": "Nimepata hosteli 3 karibu na IAA…",
+          "parsed_intent": { ... },
+          "action_triggered": "TRIGGER_SEARCH"
+        }
+        ```
+        
+        **WebSocket URL:** `ws://localhost:8000/api/v1/conversation/ws/{session_id}`
+      security: []
+      operationId: conversation_websocket
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "sess_abc123"
+      responses:
+        "101":
+          description: WebSocket connection established
+
+  # ─────────────────────────────── AMENITIES ─────────────────────────────────
+
+  /api/v1/amenities/nearby:
+    get:
+      tags: [Amenities]
+      summary: Find POIs near a coordinate
+      security: []
+      operationId: amenities_nearby
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+          example: -6.764
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+          example: 39.279
+        - name: radius_m
+          in: query
+          schema:
+            type: number
+            default: 1000
+          example: 500
+      responses:
+        "200":
+          description: Nearby amenities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/v1/amenities/property/{property_id}:
+    get:
+      tags: [Amenities]
+      summary: Get amenities for a specific property
+      security: []
+      operationId: amenities_by_property
+      parameters:
+        - $ref: "#/components/parameters/PropertyId"
+      responses:
+        "200":
+          description: Property amenities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  # ─────────────────────────────── PARAMETERS ────────────────────────────────
+
+parameters:
+  PropertyId:
+    name: property_id
+    in: path
+    required: true
+    schema:
+      type: string
+      format: uuid
+    example: "550e8400-e29b-41d4-a716-446655440001"
+    description: UUID of the property
+
+  UserId:
+    name: user_id
+    in: path
+    required: true
+    schema:
+      type: string
+      format: uuid
+    example: "550e8400-e29b-41d4-a716-446655440000"
+    description: UUID of the user
