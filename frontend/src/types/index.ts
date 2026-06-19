@@ -32,8 +32,14 @@ export interface User {
   role: UserRole;
   avatar_url?: string;
   is_verified: boolean;
+  account_status?: string;
   preferred_language: Language;
   created_at: string;
+}
+
+export interface LandlordUser extends User {
+  verification_status?: string;
+  verification_date?: string;
 }
 
 export interface AuthTokens {
@@ -53,6 +59,12 @@ export interface PropertyImage {
   id: string;
   url: string;
   is_primary: boolean;
+  caption?: string;
+}
+
+export interface PropertyVideo {
+  id: string;
+  url: string;
   caption?: string;
 }
 
@@ -91,6 +103,7 @@ export interface Property {
   has_wifi: boolean;
   has_parking: boolean;
   images: PropertyImage[];
+  videos?: PropertyVideo[];
   amenities: Amenity[];
   landlord_id: string;
   landlord_name?: string;
@@ -104,6 +117,7 @@ export interface Property {
   /** Gender policy for hostels: 'girls', 'boys', 'mixed' */
   gender_policy?: "girls" | "boys" | "mixed";
   is_price_flagged: boolean;
+  is_verified?: boolean;
   fair_price_estimate?: number;
   average_rating?: number;
   review_count: number;
@@ -255,6 +269,7 @@ export interface Review {
   user_avatar?: string;
   rating: number;      // 1–5
   comment: string;
+  moderation_status?: string;
   created_at: string;
 }
 
@@ -272,7 +287,25 @@ export interface Payment {
   description: string;
   created_at: string;
 }
+export interface RentalApplication {
+  id: string;
+  seeker_id: string;
+  property_id: string;
+  application_status: string;
+  move_in_date?: string;
+  message?: string;
+  applied_at: string;
+}
 
+export interface Appointment {
+  id: string;
+  seeker_id: string;
+  property_id: string;
+  appointment_date?: string;
+  status: string;
+  notes?: string;
+  created_at: string;
+}
 // ── Price Prediction ──────────────────────────────────────────────────────
 
 export interface PricePredictionRequest {
@@ -319,11 +352,67 @@ export interface AdminStats {
   active_listings: number;
   total_revenue: number;
   pending_approvals: number;
+  pending_landlord_verifications: number;
   fraud_reports: number;
+  open_complaints: number;
+  pending_reviews: number;
   users_by_month: { month: string; count: number }[];
   revenue_by_month: { month: string; amount: number }[];
   listings_by_municipality: { municipality: string; count: number }[];
   popular_wards: { ward: string; count: number }[];
+}
+
+export interface Complaint {
+  id: string;
+  complainant_id: string;
+  property_id?: string;
+  complaint_text?: string;
+  status: string;
+  resolved_by?: string;
+  created_at: string;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  message: string;
+  sent_by?: string;
+  created_at: string;
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  description?: string;
+  price_tzs: number;
+  billing_cycle: string;
+  is_active: boolean;
+}
+
+export interface ReportSummary {
+  total_users: number;
+  total_properties: number;
+  total_revenue: number;
+  open_complaints: number;
+  pending_reviews: number;
+  generated_at: string;
+}
+
+export interface SystemSetting {
+  id: number;
+  setting_key: string;
+  setting_value: string;
+  updated_at: string;
+}
+
+export interface AuditLog {
+  id: string;
+  user_id?: string;
+  action: string;
+  entity_name?: string;
+  entity_id?: string;
+  ip_address?: string;
+  created_at: string;
 }
 
 // ── Notification ──────────────────────────────────────────────────────────

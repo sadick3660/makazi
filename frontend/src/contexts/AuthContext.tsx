@@ -11,8 +11,8 @@ interface AuthContextValue {
   tokens: AuthTokens | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (data: LoginRequest) => Promise<void>;
-  register: (data: RegisterRequest) => Promise<void>;
+  login: (data: LoginRequest) => Promise<User>;
+  register: (data: RegisterRequest) => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistTokens(result.tokens);
     setUser(result.user);
     toast.success(`Welcome back, ${result.user.full_name.split(" ")[0]}!`);
+    return result.user;
   };
 
   const register = async (data: RegisterRequest) => {
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persistTokens(result.tokens);
     setUser(result.user);
     toast.success("Account created successfully!");
+    return result.user;
   };
 
   const logout = () => {

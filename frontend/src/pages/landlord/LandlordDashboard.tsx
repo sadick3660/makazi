@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Home, Eye, Edit, Trash2, TrendingUp, Users, DollarSign, ChevronRight, CheckCircle, AlertTriangle } from "lucide-react";
+import { Plus, Home, Eye, Edit, Trash2, TrendingUp, Users, DollarSign, ChevronRight, CheckCircle, AlertTriangle, ClipboardList, CalendarDays } from "lucide-react";
 import { propertiesApi } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import type { Property } from "../../types";
@@ -17,7 +17,7 @@ export default function LandlordDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    propertiesApi.search({}).then(r => setListings(r.results)).finally(() => setLoading(false));
+    propertiesApi.myListings().then(r => setListings(r.results)).finally(() => setLoading(false));
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -109,9 +109,15 @@ export default function LandlordDashboard() {
                   >
                     <Eye className="w-4 h-4" />
                   </Link>
-                  <button className="p-2 text-surface-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
+                  <Link to={`/landlord/edit-property/${p.id}`} className="p-2 text-surface-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
                     <Edit className="w-4 h-4" />
-                  </button>
+                  </Link>
+                  <Link to="/landlord/applications" className="p-2 text-surface-400 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors" title="View applications">
+                    <ClipboardList className="w-4 h-4" />
+                  </Link>
+                  <Link to="/landlord/appointments" className="p-2 text-surface-400 hover:text-surface-900 hover:bg-surface-100 rounded-lg transition-colors" title="View appointments">
+                    <CalendarDays className="w-4 h-4" />
+                  </Link>
                   <button onClick={() => handleDelete(p.id)}
                     className="p-2 text-surface-400 hover:text-maroon-600 hover:bg-maroon-50 rounded-lg transition-colors"
                   >

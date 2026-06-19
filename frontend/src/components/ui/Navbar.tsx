@@ -3,7 +3,8 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import {
   Menu, X, Bell, Globe, Home, ChevronDown, LogOut,
   User, LayoutDashboard, Heart, Search, Building2,
-  ShieldCheck, UserPlus, LogIn, Users,
+  ShieldCheck, Settings2, UserPlus, LogIn, Users, BarChart2,
+  ClipboardList, CalendarDays,
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "../../contexts/AuthContext";
@@ -167,20 +168,48 @@ export default function Navbar() {
                           </Link>
                         )}
                         {user?.role === "landlord" && (
-                          <Link to="/landlord/add-property"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 hover:text-primary-600 transition-colors"
-                          >
-                            <Building2 className="w-4 h-4" /> Add Listing
-                          </Link>
+                          <>
+                            <Link to="/landlord/add-property"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 hover:text-primary-600 transition-colors"
+                            >
+                              <Building2 className="w-4 h-4" /> Add Listing
+                            </Link>
+                            <Link to="/landlord/applications"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 hover:text-primary-600 transition-colors"
+                            >
+                              <ClipboardList className="w-4 h-4" /> Applications
+                            </Link>
+                            <Link to="/landlord/appointments"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 hover:text-primary-600 transition-colors"
+                            >
+                              <CalendarDays className="w-4 h-4" /> Appointments
+                            </Link>
+                          </>
                         )}
                         {user?.role === "admin" && (
-                          <Link to="/admin/dashboard"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-maroon-700 hover:bg-maroon-50 transition-colors"
-                          >
-                            <ShieldCheck className="w-4 h-4" /> Admin Panel
-                          </Link>
+                          <>
+                            <Link to="/admin/dashboard"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-maroon-700 hover:bg-maroon-50 transition-colors"
+                            >
+                              <ShieldCheck className="w-4 h-4" /> Admin Panel
+                            </Link>
+                            <Link to="/admin/reports"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 hover:text-primary-600 transition-colors"
+                            >
+                              <BarChart2 className="w-4 h-4" /> Reports
+                            </Link>
+                            <Link to="/admin/settings"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-sm text-surface-700 hover:bg-surface-50 hover:text-primary-600 transition-colors"
+                            >
+                              <Settings2 className="w-4 h-4" /> Admin Settings
+                            </Link>
+                          </>
                         )}
                       </div>
 
@@ -216,9 +245,7 @@ export default function Navbar() {
                         <p className="text-xs font-semibold text-surface-600 uppercase tracking-wide">Sign in as</p>
                       </div>
                       {[
-                        { role: "seeker",   icon: Search,      label: "Seeker",   desc: "Find accommodation",  color: "text-primary-600",  bg: "hover:bg-primary-50" },
-                        { role: "landlord", icon: Building2,   label: "Landlord", desc: "Manage my listings",  color: "text-emerald-600",  bg: "hover:bg-emerald-50" },
-                        { role: "admin",    icon: ShieldCheck, label: "Admin",    desc: "System administration", color: "text-maroon-600", bg: "hover:bg-maroon-50" },
+                        { role: "seeker", icon: Search, label: "Seeker", desc: "Find accommodation", color: "text-primary-600", bg: "hover:bg-primary-50" },
                       ].map(({ role, icon: Icon, label, desc, color, bg }) => (
                         <Link
                           key={role}
@@ -303,6 +330,20 @@ export default function Navbar() {
                   >
                     <LayoutDashboard className="w-4 h-4 text-primary-500" /> Dashboard
                   </Link>
+                  {user?.role === "landlord" && (
+                    <>
+                      <Link to="/landlord/applications" onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-2 text-sm text-surface-700 py-2"
+                      >
+                        <ClipboardList className="w-4 h-4 text-emerald-600" /> Applications
+                      </Link>
+                      <Link to="/landlord/appointments" onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-2 text-sm text-surface-700 py-2"
+                      >
+                        <CalendarDays className="w-4 h-4 text-emerald-600" /> Appointments
+                      </Link>
+                    </>
+                  )}
                   <button onClick={() => { handleLogout(); setMobileOpen(false); }}
                     className="flex items-center gap-2 text-sm text-maroon-600 py-2 w-full"
                   >
@@ -313,9 +354,7 @@ export default function Navbar() {
                 <>
                   <p className="text-xs font-semibold text-surface-500 uppercase tracking-wide mb-2">Sign in as</p>
                   {[
-                    { role: "seeker",   icon: Search,      label: "Seeker Login",   color: "text-primary-600" },
-                    { role: "landlord", icon: Building2,   label: "Landlord Login", color: "text-emerald-600" },
-                    { role: "admin",    icon: ShieldCheck, label: "Admin Login",    color: "text-maroon-600" },
+                    { role: "seeker", icon: Search, label: "Seeker Login", color: "text-primary-600" },
                   ].map(({ role, icon: Icon, label, color }) => (
                     <Link key={role} to={`/login?role=${role}`}
                       onClick={() => setMobileOpen(false)}

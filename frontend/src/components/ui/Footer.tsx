@@ -43,7 +43,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-sm uppercase tracking-wide text-surface-300 mb-4">For Landlords</h4>
             <ul className="space-y-2.5">
-              {[["List Your Property", "/landlord/add-property"], ["Manage Listings", "/landlord/dashboard"], ["Pricing Guide", "/faq"], ["FAQ", "/faq"]].map(([label, to]) => (
+              {[['List Your Property', '/landlord/add-property'], ['Manage Listings', '/landlord/dashboard'], ['My Applications', '/landlord/applications'], ['Appointments', '/landlord/appointments'], ['Pricing Guide', '/faq'], ['FAQ', '/faq']].map(([label, to]) => (
                 <li key={to}>
                   <Link to={to} className="text-sm text-surface-400 hover:text-white transition-colors">{label}</Link>
                 </li>

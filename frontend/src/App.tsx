@@ -35,9 +35,13 @@ import ProfilePage     from "./pages/ProfilePage";
 import LandlordDashboard from "./pages/landlord/LandlordDashboard";
 import AddPropertyPage   from "./pages/landlord/AddPropertyPage";
 import EditPropertyPage  from "./pages/landlord/EditPropertyPage";
+import ApplicationsPage  from "./pages/landlord/ApplicationsPage";
+import AppointmentsPage  from "./pages/landlord/AppointmentsPage";
 
 // Admin pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminReportsPage from "./pages/admin/AdminReportsPage";
+import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 
 // Hostel pages
 import HostelPage from "./pages/public/HostelPage";
@@ -97,9 +101,13 @@ function AppRoutes() {
         <Route path="/landlord/dashboard"         element={<RequireAuth role="landlord"><Public hideFooter><LandlordDashboard /></Public></RequireAuth>} />
         <Route path="/landlord/add-property"      element={<RequireAuth role="landlord"><Public><AddPropertyPage /></Public></RequireAuth>} />
         <Route path="/landlord/edit-property/:id" element={<RequireAuth role="landlord"><Public><EditPropertyPage /></Public></RequireAuth>} />
+        <Route path="/landlord/applications"      element={<RequireAuth role="landlord"><Public><ApplicationsPage /></Public></RequireAuth>} />
+        <Route path="/landlord/appointments"      element={<RequireAuth role="landlord"><Public><AppointmentsPage /></Public></RequireAuth>} />
 
         {/* Admin */}
         <Route path="/admin/dashboard" element={<RequireAuth role="admin"><Public hideFooter><AdminDashboard /></Public></RequireAuth>} />
+        <Route path="/admin/reports" element={<RequireAuth role="admin"><Public hideFooter><AdminReportsPage /></Public></RequireAuth>} />
+        <Route path="/admin/settings" element={<RequireAuth role="admin"><Public hideFooter><AdminSettingsPage /></Public></RequireAuth>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

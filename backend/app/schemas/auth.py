@@ -76,6 +76,20 @@ class UserOut(BaseModel):
         )
 
 
+class LandlordOut(UserOut):
+    verification_status: Optional[str] = None
+    verification_date:   Optional[str] = None
+
+    @classmethod
+    def from_orm_user(cls, u: object) -> "LandlordOut":
+        base_data = super().from_orm_user(u).model_dump()
+        profile = getattr(u, "landlord_profile", None)
+        if profile is not None:
+            base_data["verification_status"] = profile.verification_status
+            base_data["verification_date"] = profile.verification_date.isoformat() if profile.verification_date else None
+        return cls.model_validate(base_data)
+
+
 # ── Auth response ─────────────────────────────────────────────────────────────
 
 class AuthResponse(BaseModel):

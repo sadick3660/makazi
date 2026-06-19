@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { Users, Home, DollarSign, AlertTriangle, TrendingUp, BarChart2, PieChart, ShieldAlert, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Users, Home, DollarSign, AlertTriangle, TrendingUp, BarChart2, PieChart, ShieldAlert, Clock, CheckCircle2, Eye, UserCheck } from "lucide-react";
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement,
   PointElement, ArcElement, Tooltip, Legend, Filler,
 } from "chart.js";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
 import { adminApi } from "../../services/api";
-import type { AdminStats } from "../../types";
+import type { AdminStats, LandlordUser, Property } from "../../types";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend, Filler);
 
@@ -14,9 +15,18 @@ const CHART_OPTS = { responsive: true, maintainAspectRatio: false, plugins: { le
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [pendingLandlords, setPendingLandlords] = useState<LandlordUser[]>([]);
+  const [pendingProperties, setPendingProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => { adminApi.stats().then(setStats).finally(() => setLoading(false)); }, []);
+  useEffect(() => {
+    Promise.all([
+      adminApi.stats().then(setStats),
+      adminApi.landlords().then(setPendingLandlords),
+      adminApi.properties().then(setPendingProperties),
+    ]).finally(() => setLoading(false));
+  }, []);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-surface-50">
@@ -26,11 +36,30 @@ export default function AdminDashboard() {
 
   if (!stats) return null;
 
+  const pendingLandlordCount = pendingLandlords.filter((landlord) => landlord.verification_status === "PENDING").length;
+
+  const handleVerifyLandlord = async (landlordId: string) => {
+    setActionLoading(landlordId);
+    await adminApi.verifyLandlord(landlordId);
+    setPendingLandlords((current) => current.filter((landlord) => landlord.id !== landlordId));
+    setStats((prev) => prev ? { ...prev, pending_landlord_verifications: Math.max(prev.pending_landlord_verifications - 1, 0) } : prev);
+    setActionLoading(null);
+  };
+
+  const handleApproveProperty = async (propertyId: string) => {
+    setActionLoading(propertyId);
+    await adminApi.approveProperty(propertyId);
+    setPendingProperties((current) => current.filter((property) => property.id !== propertyId));
+    setStats((prev) => prev ? { ...prev, pending_approvals: Math.max(prev.pending_approvals - 1, 0) } : prev);
+    setActionLoading(null);
+  };
+
   const kpis = [
     { icon: Users,       label: "Total Users",      value: stats.total_users.toLocaleString(),     change: "+12%",  color: "bg-primary-100 text-primary-600" },
     { icon: Home,        label: "Active Listings",   value: stats.active_listings.toString(),       change: "+5%",   color: "bg-emerald-100 text-emerald-600" },
     { icon: DollarSign,  label: "Revenue (TZS)",     value: `${(stats.total_revenue / 1e6).toFixed(1)}M`, change: "+18%", color: "bg-amber-100 text-amber-600" },
     { icon: AlertTriangle, label: "Fraud Reports",   value: stats.fraud_reports.toString(),         change: "-2",    color: "bg-maroon-100 text-maroon-600" },
+    { icon: UserCheck,   label: "Landlord Verifications", value: stats.pending_landlord_verifications?.toString() ?? "0", change: "",      color: "bg-surface-100 text-surface-600" },
     { icon: Clock,       label: "Pending Approvals", value: stats.pending_approvals.toString(),     change: "",      color: "bg-surface-100 text-surface-600" },
   ];
 
@@ -132,6 +161,121 @@ export default function AdminDashboard() {
                   borderRadius: 6,
                 }],
               }} options={{ ...CHART_OPTS, plugins: { legend: { display: false } }, indexAxis: "y" } as never} />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid xl:grid-cols-[1.3fr_0.7fr] gap-6">
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-semibold text-surface-900">Admin Control Center</h3>
+                <p className="text-sm text-surface-500">Quick links to the most important admin workflows.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link to="/admin/reports" className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition-colors">
+                  <BarChart2 className="w-4 h-4" /> Reports
+                </Link>
+                <Link to="/admin/settings" className="inline-flex items-center gap-2 rounded-full border border-surface-200 bg-white px-4 py-2 text-sm font-semibold text-surface-900 hover:bg-surface-50 transition-colors">
+                  <ShieldAlert className="w-4 h-4" /> Settings
+                </Link>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-surface-200 bg-surface-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-surface-500">Pending Verifications</p>
+                <p className="mt-2 text-3xl font-semibold text-surface-900">{pendingLandlordCount}</p>
+              </div>
+              <div className="rounded-2xl border border-surface-200 bg-surface-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-surface-500">Pending Property Approvals</p>
+                <p className="mt-2 text-3xl font-semibold text-surface-900">{pendingProperties.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-surface-900">Pending Landlord Verifications</h3>
+                <span className="text-sm text-surface-500">{pendingLandlordCount} awaiting review</span>
+              </div>
+              {pendingLandlords.length === 0 ? (
+                <div className="py-8 text-center text-surface-500">No landlord accounts pending verification.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-surface-200">
+                        {['Landlord','Email','Status','Actions'].map(h => (
+                          <th key={h} className="text-left text-xs font-semibold text-surface-500 uppercase tracking-wide pb-3 pr-4">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-100">
+                      {pendingLandlords.map((landlord) => (
+                        <tr key={landlord.id}>
+                          <td className="py-3 pr-4 font-medium text-surface-900">{landlord.full_name}</td>
+                          <td className="py-3 pr-4 text-surface-600">{landlord.email}</td>
+                          <td className="py-3 pr-4 text-surface-600">{landlord.verification_status ?? 'PENDING'}</td>
+                          <td className="py-3">
+                            <button
+                              type="button"
+                              disabled={actionLoading === landlord.id}
+                              onClick={() => handleVerifyLandlord(landlord.id)}
+                              className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-surface-200 disabled:text-surface-500"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Verify
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-surface-900">Pending Property Listings</h3>
+                <span className="text-sm text-surface-500">{pendingProperties.length} awaiting approval</span>
+              </div>
+              {pendingProperties.length === 0 ? (
+                <div className="py-8 text-center text-surface-500">No properties need approval right now.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-surface-200">
+                        {['Title','Landlord','Ward','Actions'].map(h => (
+                          <th key={h} className="text-left text-xs font-semibold text-surface-500 uppercase tracking-wide pb-3 pr-4">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-surface-100">
+                      {pendingProperties.map((property) => (
+                        <tr key={property.id}>
+                          <td className="py-3 pr-4 font-medium text-surface-900">{property.title}</td>
+                          <td className="py-3 pr-4 text-surface-600">{property.landlord_name ?? 'Unknown'}</td>
+                          <td className="py-3 pr-4 text-surface-600">{property.ward}</td>
+                          <td className="py-3">
+                            <button
+                              type="button"
+                              disabled={actionLoading === property.id}
+                              onClick={() => handleApproveProperty(property.id)}
+                              className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-surface-200 disabled:text-surface-500"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              Approve
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>

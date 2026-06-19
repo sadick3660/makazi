@@ -8,11 +8,14 @@
  */
 import axios from "axios";
 import type {
-  User, AuthTokens, LoginRequest, RegisterRequest,
+  User, LandlordUser, AuthTokens, LoginRequest, RegisterRequest,
   Property, PropertySearchParams, PaginatedResponse,
   ChatMessage, PricePredictionRequest, PricePredictionResponse,
   Payment, AdminStats, Review, Notification,
   ConversationResponse, SpatialSearchParams, SearchResponse,
+  SystemSetting, AuditLog, Complaint, Announcement,
+  SubscriptionPlan, ReportSummary,
+  RentalApplication, Appointment,
 } from "../types";
 
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -333,6 +336,66 @@ const MOCK_PROPERTIES: Property[] = [
   },
 ];
 
+const MOCK_RENTAL_APPLICATIONS: RentalApplication[] = [
+  {
+    id: "app1",
+    seeker_id: "u1",
+    property_id: "p1",
+    application_status: "pending",
+    move_in_date: "2024-07-01",
+    message: "I am very interested in this property and would like to move in at the beginning of July.",
+    applied_at: "2024-06-10",
+  },
+  {
+    id: "app2",
+    seeker_id: "u2",
+    property_id: "p2",
+    application_status: "approved",
+    move_in_date: "2024-08-01",
+    message: "I like the location and features. Please let me know the next steps.",
+    applied_at: "2024-06-12",
+  },
+  {
+    id: "app3",
+    seeker_id: "u3",
+    property_id: "p1",
+    application_status: "rejected",
+    move_in_date: "2024-07-15",
+    message: "Looking for a quiet room near campus.",
+    applied_at: "2024-06-13",
+  },
+];
+
+const MOCK_APPOINTMENTS: Appointment[] = [
+  {
+    id: "apt1",
+    seeker_id: "u1",
+    property_id: "p1",
+    appointment_date: "2024-06-20T14:00:00Z",
+    status: "scheduled",
+    notes: "Tenant requested a walkthrough in the afternoon.",
+    created_at: "2024-06-11",
+  },
+  {
+    id: "apt2",
+    seeker_id: "u2",
+    property_id: "p2",
+    appointment_date: "2024-06-22T10:00:00Z",
+    status: "completed",
+    notes: "Visited and shown the unit. Follow-up pending.",
+    created_at: "2024-06-12",
+  },
+  {
+    id: "apt3",
+    seeker_id: "u3",
+    property_id: "p3",
+    appointment_date: "2024-06-25T16:00:00Z",
+    status: "cancelled",
+    notes: "Seeker rescheduled due to travel.",
+    created_at: "2024-06-13",
+  },
+];
+
 // ── Auth API ───────────────────────────────────────────────────────────────
 
 export const authApi = {
@@ -414,7 +477,7 @@ export const authApi = {
 export const propertiesApi = {
   search: async (params: PropertySearchParams): Promise<PaginatedResponse<Property>> => {
     if (!USE_MOCK) {
-      const res = await http.get("/api/v1/rentals/list", { params });
+      const res = await http.get("/api/v1/properties", { params });
       return res.data;
     }
     await delay(500);
@@ -437,7 +500,7 @@ export const propertiesApi = {
   },
   getById: async (id: string): Promise<Property> => {
     if (!USE_MOCK) {
-      const res = await http.get(`/api/v1/rentals/${id}`);
+      const res = await http.get(`/api/v1/properties/${id}`);
       return res.data;
     }
     await delay(300);
@@ -447,7 +510,25 @@ export const propertiesApi = {
   },
   create: async (data: Partial<Property>): Promise<Property> => {
     if (!USE_MOCK) {
-      const res = await http.post("/api/v1/rentals/", data);
+      const payload = {
+        property_type: data.type,
+        title: data.title,
+        description: data.description,
+        location: data.street_address ?? data.location,
+        ward: data.ward,
+        district: data.municipality,
+        city: "Dar es Salaam",
+        latitude: data.latitude,
+        longitude: data.longitude,
+        monthly_rent: data.rent_amount,
+        bedrooms: data.rooms,
+        bathrooms: data.bathrooms,
+        size_sqm: data.floor_area_sqm,
+        gender_restriction: undefined,
+        capacity: data.capacity,
+        amenity_ids: [],
+      };
+      const res = await http.post("/api/v1/properties", payload);
       return res.data;
     }
     await delay(800);
@@ -469,7 +550,22 @@ export const propertiesApi = {
   },
   update: async (id: string, data: Partial<Property>): Promise<Property> => {
     if (!USE_MOCK) {
-      const res = await http.patch(`/api/v1/rentals/${id}`, data);
+      const payload: Record<string, unknown> = {};
+      if (data.title !== undefined) payload.title = data.title;
+      if (data.description !== undefined) payload.description = data.description;
+      if (data.street_address !== undefined) payload.location = data.street_address;
+      if (data.location !== undefined) payload.location = data.location;
+      if (data.ward !== undefined) payload.ward = data.ward;
+      if (data.municipality !== undefined) payload.district = data.municipality;
+      if (data.latitude !== undefined) payload.latitude = data.latitude;
+      if (data.longitude !== undefined) payload.longitude = data.longitude;
+      if (data.rent_amount !== undefined) payload.monthly_rent = data.rent_amount;
+      if (data.rooms !== undefined) payload.bedrooms = data.rooms;
+      if (data.bathrooms !== undefined) payload.bathrooms = data.bathrooms;
+      if (data.floor_area_sqm !== undefined) payload.size_sqm = data.floor_area_sqm;
+      if (data.status !== undefined) payload.availability_status = data.status;
+      if (data.capacity !== undefined) payload.capacity = data.capacity;
+      const res = await http.patch(`/api/v1/properties/${id}`, payload);
       return res.data;
     }
     await delay(500);
@@ -478,7 +574,7 @@ export const propertiesApi = {
   },
   delete: async (id: string): Promise<void> => {
     if (!USE_MOCK) {
-      await http.delete(`/api/v1/rentals/${id}`);
+      await http.delete(`/api/v1/properties/${id}`);
       return;
     }
     await delay(400);
@@ -498,7 +594,7 @@ export const propertiesApi = {
   /** Get properties owned by the current authenticated landlord */
   myListings: async (): Promise<PaginatedResponse<Property>> => {
     if (!USE_MOCK) {
-      const res = await http.get("/api/v1/rentals/my-listings");
+      const res = await http.get("/api/v1/properties/my/listings");
       return res.data;
     }
     await delay(400);
@@ -507,6 +603,47 @@ export const propertiesApi = {
       next: null, previous: null,
       total_pages: 1, current_page: 1,
     };
+  },
+};
+
+export const rentalsApi = {
+  getApplicationsForProperty: async (propertyId: string): Promise<RentalApplication[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get(`/api/v1/rentals/applications/property/${propertyId}`);
+      return res.data;
+    }
+    await delay(400);
+    return MOCK_RENTAL_APPLICATIONS.filter(app => app.property_id === propertyId);
+  },
+  updateApplicationStatus: async (id: string, status: string): Promise<RentalApplication> => {
+    if (!USE_MOCK) {
+      const res = await http.patch(`/api/v1/rentals/applications/${id}`, { application_status: status });
+      return res.data;
+    }
+    await delay(300);
+    const app = MOCK_RENTAL_APPLICATIONS.find(item => item.id === id);
+    if (!app) throw new Error("Application not found");
+    app.application_status = status;
+    return { ...app };
+  },
+  getAppointmentsForProperty: async (propertyId: string): Promise<Appointment[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get(`/api/v1/rentals/appointments/property/${propertyId}`);
+      return res.data;
+    }
+    await delay(400);
+    return MOCK_APPOINTMENTS.filter(app => app.property_id === propertyId);
+  },
+  updateAppointmentStatus: async (id: string, status: string): Promise<Appointment> => {
+    if (!USE_MOCK) {
+      const res = await http.patch(`/api/v1/rentals/appointments/${id}`, { status });
+      return res.data;
+    }
+    await delay(300);
+    const appointment = MOCK_APPOINTMENTS.find(item => item.id === id);
+    if (!appointment) throw new Error("Appointment not found");
+    appointment.status = status;
+    return { ...appointment };
   },
 };
 
@@ -719,7 +856,7 @@ export const adminApi = {
     await delay(600);
     return {
       total_users: 1248, total_properties: 342, active_listings: 287,
-      total_revenue: 12450000, pending_approvals: 14, fraud_reports: 3,
+      total_revenue: 12450000, pending_approvals: 14, pending_landlord_verifications: 8, fraud_reports: 3,
       users_by_month: [
         { month: "Jan", count: 45 }, { month: "Feb", count: 62 }, { month: "Mar", count: 88 },
         { month: "Apr", count: 110 }, { month: "May", count: 134 }, { month: "Jun", count: 156 },
@@ -741,14 +878,214 @@ export const adminApi = {
     };
   },
   users: async (): Promise<User[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/users");
+      return res.data;
+    }
     await delay(400);
     return [MOCK_USER, MOCK_LANDLORD_USER];
   },
+  landlords: async (): Promise<LandlordUser[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/landlords");
+      return res.data;
+    }
+    await delay(400);
+    return [
+      { ...MOCK_LANDLORD_USER, verification_status: "PENDING", verification_date: "2026-06-01" },
+    ];
+  },
+  properties: async (): Promise<Property[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/properties?is_verified=false");
+      return res.data;
+    }
+    await delay(400);
+    return MOCK_PROPERTIES.filter((property) => !property.is_verified).slice(0, 5);
+  },
+  auditLogs: async (): Promise<AuditLog[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/audit-logs");
+      return res.data.results ?? res.data;
+    }
+    await delay(400);
+    return [
+      { id: "log1", user_id: "u3", action: "LOGIN_SUCCESS", entity_name: "User", entity_id: "u3", ip_address: "196.207.116.3", created_at: "2026-06-18T09:22:00Z" },
+      { id: "log2", user_id: "u2", action: "PROPERTY_SUBMITTED", entity_name: "Property", entity_id: "p3", ip_address: "196.207.116.8", created_at: "2026-06-18T08:50:00Z" },
+      { id: "log3", user_id: "u2", action: "PASSWORD_RESET_REQUESTED", entity_name: "User", entity_id: "u2", ip_address: "196.207.116.8", created_at: "2026-06-18T08:15:00Z" },
+    ];
+  },
+  settings: async (): Promise<SystemSetting[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/settings");
+      return res.data;
+    }
+    await delay(300);
+    return [
+      { id: 1, setting_key: "require_landlord_verification", setting_value: "true", updated_at: "2026-06-18T08:30:00Z" },
+      { id: 2, setting_key: "max_pending_listings", setting_value: "50", updated_at: "2026-06-17T14:22:00Z" },
+      { id: 3, setting_key: "fraud_detection_threshold", setting_value: "0.85", updated_at: "2026-06-16T10:05:00Z" },
+    ];
+  },
+  updateSetting: async (key: string, value: string): Promise<SystemSetting> => {
+    if (!USE_MOCK) {
+      const res = await http.patch(`/api/v1/admin/settings/${key}`, { setting_value: value });
+      return res.data;
+    }
+    await delay(300);
+    console.log("Updated setting", key, value);
+    return { id: 1, setting_key: key, setting_value: value, updated_at: new Date().toISOString() };
+  },
+  pendingReviews: async (): Promise<Review[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/reviews/pending");
+      return res.data;
+    }
+    await delay(400);
+    return [
+      { id: "r1", property_id: "p1", user_id: "u4", user_name: "Khalid M.", rating: 1, comment: "Listing is misleading and the room does not exist.", created_at: "2026-06-16T12:14:00Z", moderation_status: "PENDING" },
+      { id: "r2", property_id: "p2", user_id: "u5", user_name: "Asha T.", rating: 2, comment: "Inappropriate language used by the landlord.", created_at: "2026-06-17T09:47:00Z", moderation_status: "PENDING" },
+    ];
+  },
+  moderateReview: async (id: string, status: string): Promise<Review> => {
+    if (!USE_MOCK) {
+      const res = await http.patch(`/api/v1/reviews/${id}/moderate`, { moderation_status: status });
+      return res.data;
+    }
+    await delay(400);
+    console.log("Moderated review", id, status);
+    return { id, property_id: "p1", user_id: "u4", user_name: "Moderated", rating: 1, comment: "Moderated.", created_at: new Date().toISOString(), moderation_status: status };
+  },
+  complaints: async (): Promise<Complaint[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/complaints");
+      return res.data;
+    }
+    await delay(400);
+    return [
+      { id: "c1", complainant_id: "u6", property_id: "p3", complaint_text: "This listing has inaccurate photos.", status: "OPEN", resolved_by: undefined, created_at: "2026-06-17T10:22:00Z" },
+      { id: "c2", complainant_id: "u7", property_id: "p4", complaint_text: "The landlord has not responded to the booking request.", status: "OPEN", resolved_by: undefined, created_at: "2026-06-17T15:05:00Z" },
+    ];
+  },
+  resolveComplaint: async (id: string): Promise<Complaint> => {
+    if (!USE_MOCK) {
+      const res = await http.patch(`/api/v1/admin/complaints/${id}/resolve`);
+      return res.data;
+    }
+    await delay(400);
+    console.log("Resolved complaint", id);
+    return { id, complainant_id: "u6", property_id: "p3", complaint_text: "Resolved.", status: "RESOLVED", resolved_by: "admin1", created_at: new Date().toISOString() };
+  },
+  suspiciousAccounts: async (): Promise<User[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/users?status=SUSPENDED");
+      return res.data;
+    }
+    await delay(400);
+    return [
+      { id: "u8", email: "suspicious@nyumbalink.co.tz", full_name: "Suspect User", phone: "+255712000000", role: "seeker", is_verified: false, preferred_language: "en", created_at: "2026-06-10" },
+    ];
+  },
+  sendAnnouncement: async (title: string, message: string): Promise<Announcement> => {
+    if (!USE_MOCK) {
+      const res = await http.post("/api/v1/admin/announcements", { title, message });
+      return res.data;
+    }
+    await delay(400);
+    console.log("Sent announcement", title, message);
+    return { id: `a_${Date.now()}`, title, message, sent_by: "admin", created_at: new Date().toISOString() };
+  },
+  announcements: async (): Promise<Announcement[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/announcements");
+      return res.data;
+    }
+    await delay(400);
+    return [
+      { id: "a1", title: "System Maintenance", message: "Scheduled maintenance tonight from 11pm to 1am.", sent_by: "Admin", created_at: "2026-06-15T08:00:00Z" },
+    ];
+  },
+  subscriptionPlans: async (): Promise<SubscriptionPlan[]> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/subscriptions");
+      return res.data;
+    }
+    await delay(300);
+    return [
+      { id: 1, name: "Basic", description: "Access to essential landlord tools.", price_tzs: 50000, billing_cycle: "monthly", is_active: true },
+      { id: 2, name: "Premium", description: "Priority listing placement and support.", price_tzs: 120000, billing_cycle: "monthly", is_active: true },
+      { id: 3, name: "Enterprise", description: "Dedicated onboarding and analytics.", price_tzs: 260000, billing_cycle: "monthly", is_active: false },
+    ];
+  },
+  updateSubscriptionPlan: async (id: number, data: Partial<SubscriptionPlan>): Promise<SubscriptionPlan> => {
+    if (!USE_MOCK) {
+      const res = await http.patch(`/api/v1/admin/subscriptions/${id}`, data);
+      return res.data;
+    }
+    await delay(300);
+    console.log("Updated subscription plan", id, data);
+    return { id, name: data.name ?? "Plan", description: data.description, price_tzs: data.price_tzs ?? 0, billing_cycle: data.billing_cycle ?? "monthly", is_active: data.is_active ?? true };
+  },
+  generateReport: async (): Promise<ReportSummary> => {
+    if (!USE_MOCK) {
+      const res = await http.get("/api/v1/admin/reports");
+      return res.data;
+    }
+    await delay(500);
+    return {
+      total_users: 1250,
+      total_properties: 349,
+      total_revenue: 12800000,
+      open_complaints: 2,
+      pending_reviews: 3,
+      generated_at: new Date().toISOString(),
+    };
+  },
+  backupSystem: async (): Promise<{ status: string; timestamp: string }> => {
+    if (!USE_MOCK) {
+      const res = await http.post("/api/v1/admin/backup");
+      return res.data;
+    }
+    await delay(700);
+    return { status: "COMPLETED", timestamp: new Date().toISOString() };
+  },
+  verifyLandlord: async (id: string): Promise<void> => {
+    if (!USE_MOCK) {
+      await http.patch(`/api/v1/admin/landlords/${id}/verify`);
+      return;
+    }
+    await delay(400);
+    console.log("Verified landlord", id);
+  },
   approveProperty: async (id: string): Promise<void> => {
+    if (!USE_MOCK) {
+      await http.patch(`/api/v1/admin/properties/${id}/verify`);
+      return;
+    }
     await delay(400);
     console.log("Approved property", id);
   },
+  suspendProperty: async (id: string): Promise<void> => {
+    if (!USE_MOCK) {
+      await http.patch(`/api/v1/admin/properties/${id}/suspend`);
+      return;
+    }
+    await delay(400);
+    console.log("Suspended property", id);
+  },
+  activateUser: async (id: string): Promise<void> => {
+    if (!USE_MOCK) {
+      await http.patch(`/api/v1/admin/users/${id}/activate`);
+      return;
+    }
+    await delay(400);
+    console.log("Activated user", id);
+  },
   suspendUser: async (id: string): Promise<void> => {
+    if (!USE_MOCK) {
+      await http.patch(`/api/v1/admin/users/${id}/suspend`);
+      return;
+    }
     await delay(400);
     console.log("Suspended user", id);
   },

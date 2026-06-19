@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, Home, LogIn, Search, Building2, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Eye, EyeOff, Home, LogIn, Search } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLang } from "../../contexts/LanguageContext";
 import type { UserRole } from "../../types";
@@ -18,45 +18,22 @@ const ROLE_CONFIG = [
     text: "text-primary-700",
     iconBg: "bg-primary-100",
   },
-  {
-    role: "landlord" as UserRole,
-    icon: Building2,
-    label: "Landlord",
-    desc: "Manage listings",
-    border: "border-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    iconBg: "bg-emerald-100",
-  },
-  {
-    role: "admin" as UserRole,
-    icon: ShieldCheck,
-    label: "Admin",
-    desc: "System access",
-    border: "border-maroon-500",
-    bg: "bg-maroon-50",
-    text: "text-maroon-700",
-    iconBg: "bg-maroon-100",
-  },
 ];
-
-const ROLE_REDIRECT: Record<UserRole, string> = {
-  seeker:   "/seeker/dashboard",
-  landlord: "/landlord/dashboard",
-  admin:    "/admin/dashboard",
-};
 
 export default function LoginPage() {
   const { login } = useAuth();
   const { t } = useLang();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-
   const fromParam = (location.state as { from?: string })?.from;
-  const roleParam = (searchParams.get("role") as UserRole) ?? "seeker";
+  const [form, setForm] = useState({ email: "", password: "", role: "seeker" as UserRole });
 
-  const [form, setForm] = useState({ email: "", password: "", role: roleParam });
+  useEffect(() => {
+    const role = new URLSearchParams(location.search).get("role") as UserRole | null;
+    if (role === "landlord" || role === "admin") {
+      setForm(current => ({ ...current, role }));
+    }
+  }, [location.search]);
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -64,8 +41,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(form);
-      navigate(fromParam ?? ROLE_REDIRECT[form.role], { replace: true });
+      const user = await login(form);
+      navigate(fromParam ?? `/${user.role}/dashboard`, { replace: true });
     } catch {
       toast.error("Invalid email or password. Try any email with the demo.");
     } finally {
@@ -116,48 +93,9 @@ export default function LoginPage() {
               </span>
             </Link>
             <h1 className="text-2xl font-bold text-surface-900">Sign In</h1>
-            <p className="text-surface-500 text-sm mt-1">Choose your account type below</p>
+            <p className="text-surface-500 text-sm mt-1">Sign in to access your seeker dashboard.</p>
           </div>
 
-          {/* Role selector */}
-          <div className="grid grid-cols-3 gap-2 mb-5">
-            {ROLE_CONFIG.map(rc => (
-              <button
-                key={rc.role}
-                type="button"
-                onClick={() => setForm(f => ({ ...f, role: rc.role }))}
-                className={clsx(
-                  "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
-                  form.role === rc.role
-                    ? `${rc.border} ${rc.bg} ${rc.text}`
-                    : "border-surface-200 bg-white text-surface-500 hover:border-surface-300"
-                )}
-              >
-                <div className={clsx(
-                  "w-8 h-8 rounded-lg flex items-center justify-center",
-                  form.role === rc.role ? rc.iconBg : "bg-surface-100"
-                )}>
-                  <rc.icon className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-semibold">{rc.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Role description banner */}
-          <div className={clsx(
-            "flex items-center gap-3 rounded-xl px-4 py-3 mb-5 border",
-            selectedConfig.bg,
-            selectedConfig.border.replace("border-", "border-").replace("-500", "-200")
-          )}>
-            <selectedConfig.icon className={clsx("w-5 h-5 flex-shrink-0", selectedConfig.text)} />
-            <div>
-              <p className={clsx("text-sm font-semibold", selectedConfig.text)}>
-                Signing in as {selectedConfig.label}
-              </p>
-              <p className="text-xs text-surface-500">{selectedConfig.desc}</p>
-            </div>
-          </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="card p-7 space-y-4">
@@ -166,13 +104,7 @@ export default function LoginPage() {
               <input
                 type="email"
                 className="input"
-                placeholder={
-                  form.role === "admin"
-                    ? "admin@nyumbalink.co.tz"
-                    : form.role === "landlord"
-                    ? "landlord@example.com"
-                    : "you@example.com"
-                }
+                placeholder="you@example.com"
                 value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 required
@@ -211,23 +143,15 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className={clsx(
-                "w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white transition-all disabled:opacity-50",
-                form.role === "admin"
-                  ? "bg-maroon-600 hover:bg-maroon-700"
-                  : form.role === "landlord"
-                  ? "bg-emerald-600 hover:bg-emerald-700"
-                  : "bg-primary-600 hover:bg-primary-700"
-              )}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white transition-all disabled:opacity-50 bg-primary-600 hover:bg-primary-700"
             >
               <LogIn className="w-4 h-4" />
-              {loading ? "Signing in…" : `Sign in as ${selectedConfig.label}`}
+              {loading ? "Signing in…" : "Sign in"}
             </button>
 
             {/* Demo hint */}
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-              <strong>Demo mode:</strong> Select a role, then use any email & password to sign in.
-              Use <code className="bg-amber-100 px-1 rounded">admin@nyumbalink.co.tz</code> to test the admin panel.
+              <strong>Demo mode:</strong> Use any email and password to sign in.
             </div>
           </form>
 

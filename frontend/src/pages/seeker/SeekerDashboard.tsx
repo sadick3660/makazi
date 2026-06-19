@@ -20,6 +20,14 @@ export default function SeekerDashboard() {
 
   const unread = notifications.filter(n => !n.is_read).length;
 
+  const handleMarkNotificationsRead = async () => {
+    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+    if (unreadIds.length === 0) return;
+
+    await Promise.all(unreadIds.map(id => notificationsApi.markRead(id)));
+    setNotifications(current => current.map(n => ({ ...n, is_read: true })));
+  };
+
   const actions = [
     { icon: Search,       label: "Search Properties", to: "/search",   color: "bg-primary-100 text-primary-600" },
     { icon: MessageSquare,label: "AI Chat",           to: "/chat",     color: "bg-emerald-100 text-emerald-600" },
@@ -67,10 +75,19 @@ export default function SeekerDashboard() {
         {/* Notifications */}
         {unread > 0 && (
           <div className="card p-5">
-            <h2 className="font-semibold text-surface-900 mb-3 flex items-center gap-2">
-              <Bell className="w-4 h-4 text-primary-500" /> Notifications
-              <span className="badge-maroon">{unread} new</span>
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-surface-900 flex items-center gap-2">
+                <Bell className="w-4 h-4 text-primary-500" /> Notifications
+                <span className="badge-maroon">{unread} new</span>
+              </h2>
+              <button
+                type="button"
+                onClick={handleMarkNotificationsRead}
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Mark all read
+              </button>
+            </div>
             <div className="space-y-2">
               {notifications.filter(n => !n.is_read).map(n => (
                 <div key={n.id} className="flex items-start gap-3 bg-primary-50 border border-primary-100 rounded-xl p-3">

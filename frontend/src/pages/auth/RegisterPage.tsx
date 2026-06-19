@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, UserPlus, Home, Building2, Search, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Eye, EyeOff, UserPlus, Home, Search } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLang } from "../../contexts/LanguageContext";
 import type { UserRole } from "../../types";
@@ -18,44 +18,19 @@ const ROLE_CONFIG = [
     text: "text-primary-700",
     iconBg: "bg-primary-100",
   },
-  {
-    role: "landlord" as UserRole,
-    icon: Building2,
-    label: "Landlord",
-    desc: "I have property to list",
-    border: "border-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    iconBg: "bg-emerald-100",
-  },
-  {
-    role: "admin" as UserRole,
-    icon: ShieldCheck,
-    label: "Admin",
-    desc: "System administration",
-    border: "border-maroon-500",
-    bg: "bg-maroon-50",
-    text: "text-maroon-700",
-    iconBg: "bg-maroon-100",
-  },
 ];
 
-const ROLE_REDIRECT: Record<UserRole, string> = {
-  seeker:   "/seeker/dashboard",
-  landlord: "/landlord/dashboard",
-  admin:    "/admin/dashboard",
-};
+const DASHBOARD_REDIRECT = "/seeker/dashboard";
 
 const BENEFITS: Record<UserRole, string[]> = {
-  seeker:   ["AI-powered housing search", "Fair price estimates", "No broker fees", "Save favourites"],
-  landlord: ["Publish listings for free", "Reach 1,200+ seekers", "Real-time enquiries", "M-Pesa payments"],
-  admin:    ["Full platform oversight", "User management", "Fraud detection tools", "Analytics dashboard"],
+  seeker: ["AI-powered housing search", "Fair price estimates", "No broker fees", "Save favourites"],
 };
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const { t } = useLang();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [showPw, setShowPw]   = useState(false);
   const [loading, setLoading] = useState(false);
@@ -63,6 +38,13 @@ export default function RegisterPage() {
     full_name: "", email: "", phone: "", password: "",
     role: "seeker" as UserRole,
   });
+
+  useEffect(() => {
+    const role = new URLSearchParams(location.search).get("role") as UserRole | null;
+    if (role === "landlord" || role === "admin") {
+      setForm(current => ({ ...current, role }));
+    }
+  }, [location.search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,9 +54,9 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await register(form);
+      const user = await register(form);
       toast.success("Account created! Welcome to NyumbaLink.");
-      navigate(ROLE_REDIRECT[form.role]);
+      navigate(`/${user.role}/dashboard`);
     } catch {
       toast.error("Registration failed. Please try again.");
     } finally {
@@ -130,43 +112,9 @@ export default function RegisterPage() {
               </span>
             </Link>
             <h1 className="text-2xl font-bold text-surface-900">Create Account</h1>
-            <p className="text-surface-500 text-sm mt-1">Choose your role to get started</p>
+            <p className="text-surface-500 text-sm mt-1">Register as a seeker to start searching for housing.</p>
           </div>
 
-          {/* Role selector */}
-          <div className="grid grid-cols-3 gap-2 mb-5">
-            {ROLE_CONFIG.map(rc => (
-              <button
-                key={rc.role}
-                type="button"
-                onClick={() => setForm(f => ({ ...f, role: rc.role }))}
-                className={clsx(
-                  "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all",
-                  form.role === rc.role
-                    ? `${rc.border} ${rc.bg} ${rc.text}`
-                    : "border-surface-200 bg-white text-surface-500 hover:border-surface-300"
-                )}
-              >
-                <div className={clsx(
-                  "w-8 h-8 rounded-lg flex items-center justify-center",
-                  form.role === rc.role ? rc.iconBg : "bg-surface-100"
-                )}>
-                  <rc.icon className="w-4 h-4" />
-                </div>
-                <span className="text-xs font-semibold leading-tight text-center">{rc.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Selected role banner */}
-          <div className={clsx(
-            "flex items-center gap-3 rounded-xl px-4 py-2.5 mb-5 border text-sm",
-            selectedConfig.bg,
-            selectedConfig.border.replace("-500", "-200")
-          )}>
-            <selectedConfig.icon className={clsx("w-4 h-4 flex-shrink-0", selectedConfig.text)} />
-            <span className={selectedConfig.text}>{selectedConfig.desc}</span>
-          </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="card p-6 space-y-4">
@@ -234,17 +182,10 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className={clsx(
-                "w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white transition-all disabled:opacity-50",
-                form.role === "admin"
-                  ? "bg-maroon-600 hover:bg-maroon-700"
-                  : form.role === "landlord"
-                  ? "bg-emerald-600 hover:bg-emerald-700"
-                  : "bg-primary-600 hover:bg-primary-700"
-              )}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white transition-all disabled:opacity-50 bg-primary-600 hover:bg-primary-700"
             >
               <UserPlus className="w-4 h-4" />
-              {loading ? "Creating account…" : `Register as ${selectedConfig.label}`}
+              {loading ? "Creating account…" : "Register"}
             </button>
           </form>
 
